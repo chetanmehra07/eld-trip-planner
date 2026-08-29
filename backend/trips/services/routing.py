@@ -30,6 +30,9 @@ class RoutingError(Exception):
     """Raised when a route cannot be computed."""
 
 
+UNAVAILABLE_MESSAGE = "The routing service (OSRM) is unavailable right now. Please try again in a moment."
+
+
 def get_route(places: List[Place]) -> List[Leg]:
     """Route through `places` in order and return one Leg per consecutive pair."""
     if len(places) < 2:
@@ -78,14 +81,24 @@ def _fetch_osrm(a: Place, b: Place) -> dict:
             headers={"User-Agent": settings.GEOCODER_USER_AGENT},
             timeout=30,
         )
-        response.raise_for_status()
+        # OSRM answers "no route" with HTTP 400 and a JSON body, so read the body
+        # before deciding whether this is a routing problem or an outage.
         payload = response.json()
     except (requests.RequestException, ValueError) as exc:
         log.warning("OSRM request failed: %s", exc)
-        raise RoutingError("The routing service (OSRM) is unavailable right now. Please try again in a moment.") from exc
+        raise RoutingError(UNAVAILABLE_MESSAGE) from exc
 
-    if payload.get("code") != "Ok" or not payload.get("routes"):
-        raise RoutingError(f"No drivable route was found between {a.name} and {b.name}.")
+    code = payload.get("code")
+    if code == "NoRoute" or (code == "Ok" and not payload.get("routes")):
+        raise RoutingError(
+            f"No drivable route was found between {a.name} and {b.name}. "
+            "Both places must be reachable by road from each other."
+        )
+    if code == "NoSegment":
+        raise RoutingError(f"Could not find a road near {a.name} or {b.name}. Try a more specific address.")
+    if code != "Ok":
+        log.warning("OSRM error %s (HTTP %s): %s", code, response.status_code, payload.get("message"))
+        raise RoutingError(UNAVAILABLE_MESSAGE)
 
     route = payload["routes"][0]
     leg = route["legs"][0]
@@ -154,12 +167,18 @@ def _fetch_ors(a: Place, b: Place) -> dict:
             headers={"Authorization": settings.ORS_API_KEY, "Content-Type": "application/json"},
             timeout=30,
         )
-        response.raise_for_status()
         payload = response.json()
     except (requests.RequestException, ValueError) as exc:
         log.warning("OpenRouteService request failed: %s", exc)
         raise RoutingError("The routing service (OpenRouteService) is unavailable right now.") from exc
 
+    error = payload.get("error")
+    if error:
+        # 2009 = route not found, 2010 = no routable point near a coordinate
+        if str(error.get("code")) in ("2009", "2010"):
+            raise RoutingError(f"No drivable route was found between {a.name} and {b.name}.")
+        log.warning("OpenRouteService error: %s", error)
+        raise RoutingError("The routing service (OpenRouteService) is unavailable right now.")
     features = payload.get("features") or []
     if not features:
         raise RoutingError(f"No drivable route was found between {a.name} and {b.name}.")

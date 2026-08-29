@@ -14,6 +14,7 @@ from .services.hos_planner import (
     Place,
 )
 from .services.logbook import build_daily_logs
+from .services.routing import RoutingError, get_route
 
 ORIGIN = Place("Chicago, IL", 41.8781, -87.6298)
 PICKUP = Place("Indianapolis, IN", 39.7684, -86.1581)
@@ -130,3 +131,34 @@ class ApiTests(TestCase):
         response = self.client.post("/api/trips/plan/", {"current_cycle_used": 80}, format="json")
         self.assertEqual(response.status_code, 400)
         self.assertIn("current_location", response.json())
+
+
+class FakeResponse:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class RoutingErrorTests(TestCase):
+    """OSRM signals routing problems with HTTP 400 + JSON; they must not look like outages."""
+
+    @mock.patch("trips.services.routing.requests.get", return_value=FakeResponse(400, {"code": "NoRoute", "message": "Impossible route"}))
+    def test_no_route_is_reported_as_such(self, _get):
+        with self.assertRaises(RoutingError) as ctx:
+            get_route([Place("Honolulu, HI", 21.3, -157.8), Place("Chicago, IL", 41.9, -87.6)])
+        self.assertIn("No drivable route", str(ctx.exception))
+
+    @mock.patch("trips.services.routing.requests.get", return_value=FakeResponse(400, {"code": "NoSegment", "message": "Could not find a matching segment"}))
+    def test_point_off_road_network(self, _get):
+        with self.assertRaises(RoutingError) as ctx:
+            get_route([Place("Middle of the sea", 30.0, -140.0), Place("Chicago, IL", 41.9, -87.6)])
+        self.assertIn("road near", str(ctx.exception))
+
+    @mock.patch("trips.services.routing.requests.get", return_value=FakeResponse(502, {"code": "Error", "message": "bad gateway"}))
+    def test_server_error_is_an_outage(self, _get):
+        with self.assertRaises(RoutingError) as ctx:
+            get_route([ORIGIN, PICKUP])
+        self.assertIn("unavailable", str(ctx.exception))
