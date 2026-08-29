@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: dev-only-secret
+      REDIS_URL: redis://redis:6379/1
+      GEOCODER_USER_AGENT: eld-trip-planner/1.0 (dev@example.com)
+      DATABASE_URL: sqlite:////data/db.sqlite3
+    volumes:
+      - backend-data:/data
+    depends_on:
+      - redis
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  backend-data:

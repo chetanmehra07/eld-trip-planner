@@ -1,0 +1,29 @@
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Leaflet div-icon markers are styled inline; strip the default box. */
+.eld-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-container {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 10px;
+}
