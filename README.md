@@ -13,7 +13,8 @@
 [![Tests](https://img.shields.io/badge/tests-10%20passing-brightgreen)](#-testing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[**Live App**](https://eld-trip-planner-henna.vercel.app)
+[**Live App**](https://eld-trip-planner-henna.vercel.app)  
+[**Extended 25-min code walkthrough**](https://www.loom.com/share/917d55ba76944e738af6d4f1427e32df)
 
 </div>
 
