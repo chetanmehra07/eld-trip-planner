@@ -14,6 +14,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [**Live App**](https://eld-trip-planner-henna.vercel.app)  
+[**brief demo**](https://www.loom.com/share/e61d37a72c5a48d0909a3d5564d5bdd2)
 [**Extended 25-min code walkthrough**](https://www.loom.com/share/917d55ba76944e738af6d4f1427e32df)
 
 </div>
